@@ -1,63 +1,54 @@
-# Buckley Facility Weather Alert + Essential Personnel Access
+# Buckley Facility Weather Operations + Essential Personnel Access
 
-The primary function of this project is the **Buckley Facility Weather Alert**. It retains the same operational model as the earlier Facilities Weather dashboard:
+This version restores the original **Facilities Weather** concept as the main dashboard and adds the COtrip commute layer underneath it.
+
+## Primary question: should Buckley change facility operations?
+
+The first and most prominent section is the Buckley facility alert:
 
 * NORMAL
 * WATCH
 * ACTION
 * CLOSE CRITERIA MET
 
-That facility status is based on weather and official hazard information at Buckley and remains the main alert presented at the top of the page.
+It uses Buckley's exact coordinates, NWS point and zone alerts, NWS forecast data, KBKF current aviation observations and forecast, configurable wind/snow/ice/precipitation thresholds, and nearby wildfire information.
 
-The **Can Essential Personnel Get Here?** section is secondary. It uses the employee's selected origin, route weather, and COtrip roadway information to produce a separate access status:
+The facility status remains the primary alert system and uses the adaptive monitoring cadence in `facilities.json`.
+
+## Secondary question: can essential personnel get here?
+
+Under the facility alert is the separate access checker:
 
 * NORMAL
 * WATCH
 * ACTION
 * ACCESS CRITICAL
 
-The two statuses are deliberately independent. For example, Buckley can be NORMAL while an employee route is ACTION because of a crash, snow-packed highway, or lane restriction.
+A user can type an address. The page attempts to calculate the driving route to Buckley, checks weather along that route, and compares it with the cached COtrip layers.
 
-This is the Buckley-specific test project. It keeps facility closure decisions separate from the ability of essential personnel to reach the installation.
+COtrip feeds built into the project:
 
-## Integrated layers
+* Incidents
+* Road Conditions
+* Planned Events
+* Weather Stations
+* Snow Plows
+* Destinations / travel times
+* Signs
+* Connected Work Zone
+* WZDx
 
-The project supports:
+The two statuses are independent. Buckley can be NORMAL while an employee route is ACTION or ACCESS CRITICAL.
 
-* NWS exact-point forecasts and active alerts
-* KBKF airport observations and TAF
-* NIFC current wildfire incidents
-* COtrip Incidents
-* COtrip Road Conditions
-* COtrip Planned Events
-* COtrip Weather Stations
-* COtrip Snow Plows
-* COtrip Destinations / travel times
-* COtrip Signs
-* COtrip Connected Work Zone
-* COtrip WZDx
+## One GitHub secret
 
-The address box uses the U.S. Census geocoder. For testing it uses the public OSRM demo router to calculate a driving route to the Buckley gate. If routing fails, the page falls back to a straight geographic corridor and tells the user.
+Only this Actions secret is required:
 
-## Confirmed COtrip endpoints
+`COTRIP_API_KEY`
 
-The code uses these confirmed endpoints:
+The confirmed COtrip endpoints are built into `cotrip_integration.py`. The key is appended privately by Python and is never embedded in the public HTML.
 
-```text
-https://data.cotrip.org/api/v1/incidents
-https://data.cotrip.org/api/v1/roadConditions
-https://data.cotrip.org/api/v1/plannedEvents
-https://data.cotrip.org/api/v1/weatherStations
-https://data.cotrip.org/api/v1/snowPlows
-https://data.cotrip.org/api/v1/destinations
-https://data.cotrip.org/api/v1/signs
-https://data.cotrip.org/api/v1/cwz
-https://data.cotrip.org/api/v1/wzdx
-```
-
-The API key is appended privately by Python as the `apiKey` query parameter.
-
-## Files
+## Repository files
 
 ```text
 .github/
@@ -74,61 +65,18 @@ requirements.txt
 README.md
 ```
 
-`docs/index.html` and `docs/status.json` are generated automatically when GitHub Actions runs.
-
-## Only one GitHub secret is required
-
-Create this repository secret:
-
-`COTRIP_API_KEY`
-
-Do not place the key in any public repository file.
-
 ## GitHub Pages
 
-Under repository Settings > Pages, set:
+Set repository:
 
-`Source: GitHub Actions`
+Settings > Pages > Source > GitHub Actions
 
-Do not use `Deploy from a branch` for this version.
+Then run:
 
-## First run
+Actions > Buckley Operations Monitor > Run workflow
 
-1. Upload all project files.
-2. Add the `COTRIP_API_KEY` Actions secret.
-3. Go to Actions.
-4. Open `Buckley Operations Monitor`.
-5. Click `Run workflow`.
-6. Wait for all steps to turn green.
-7. Open Settings > Pages and use the generated site URL.
-
-## Access logic
-
-NORMAL means no meaningful route impact is detected.
-
-WATCH can be triggered by an NWS advisory or watch, wet or slick road conditions, some lane closures, or lower-level roadway impacts.
-
-ACTION can be triggered by an NWS warning, major incident, ramp restriction, alternating traffic, icy or snow-packed road conditions, concerning roadside weather observations, or an active restriction/detour message.
-
-ACCESS CRITICAL can be triggered by a critical NWS route warning or a full road/all-lanes closure intersecting the route.
-
-Snow plow locations are context only. A nearby plow is never treated as proof that a road is safe.
-
-Travel-time records are displayed but are not used for severity until a normal baseline is established.
-
-## Update cadence
-
-GitHub Actions wakes every 5 minutes.
-
-Buckley facility weather still uses adaptive intervals from `facilities.json`:
-
-* NORMAL: 30 minutes
-* WATCH: 15 minutes
-* ACTION: 5 minutes
-* CLOSE: 5 minutes
-
-COtrip is fetched on every workflow run.
+The workflow generates the HTML and deploys it directly to GitHub Pages.
 
 ## Important
 
-This is a development decision-support tool. The thresholds and access scoring rules are not approved Buckley Space Force Base operating, reporting, access, restriction, or closure policy.
+This is a development decision-support system. The thresholds and access scoring rules are test rules and are not approved Buckley Space Force Base policy.

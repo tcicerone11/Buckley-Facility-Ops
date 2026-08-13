@@ -779,7 +779,7 @@ def render_html(payload):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Buckley Facility Weather Alert</title>
+<title>Buckley Facility Operations</title>
 <style>
 :root{
   --bg:#eef2f5;--card:#fff;--ink:#17212a;--muted:#66727d;--line:#d9e0e5;
@@ -804,24 +804,24 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 <body>
 <div class="wrap">
 <div class="hero">
-  <h1>Buckley Facility Weather Alert</h1>
-  <div>Primary facility weather alert and closure decision support, with a separate essential-personnel access check.</div>
+  <h1>Buckley Facility Weather Operations</h1>
+  <div>Weather alert and closure decision support for Buckley Space Force Base.</div>
 </div>
 
 <div class="notice"><strong>TEST SYSTEM.</strong> Thresholds are placeholders for development and are not approved Buckley Space Force Base operating, reporting, restriction, or closure policy.</div>
 
-<h2>Facility Alert Levels</h2>
+<h2>Facility Status Guide</h2>
 <div class="legend">
-  <div class="legend-card normal"><strong>NORMAL</strong><br>Facility conditions support normal operations.</div>
-  <div class="legend-card watch"><strong>WATCH</strong><br>Weather could affect the facility. Prepare and monitor.</div>
-  <div class="legend-card action"><strong>ACTION</strong><br>A significant facility weather threshold is reached or expected.</div>
-  <div class="legend-card close"><strong>CLOSE CRITERIA MET</strong><br>A test closure threshold or critical official warning is reached.</div>
+  <div class="legend-card normal"><strong>NORMAL</strong><br>Normal facility operations. Continue routine monitoring.</div>
+  <div class="legend-card watch"><strong>WATCH</strong><br>Weather could affect facility operations. Monitor and prepare.</div>
+  <div class="legend-card action"><strong>ACTION</strong><br>A significant facility weather condition is reached or expected. Take the approved protective action.</div>
+  <div class="legend-card close"><strong>CLOSE CRITERIA MET</strong><br>A test closure threshold or critical official warning is reached. Follow approved closure procedures.</div>
 </div>
 
 <div id="facility"></div>
 
-<div class="notice" style="background:#e8eef4;border-color:#b9c9d7">
-<strong>Separate access question:</strong> The facility alert above answers whether Buckley itself should remain in normal operations, watch, action, or close status. The section below answers a different question, whether essential personnel may have difficulty reaching the installation.
+<div class="notice" style="background:#e8eef4;border-color:#b8cad8">
+<strong>Separate question:</strong> The facility alert above tells you whether Buckley itself may need an operational change. The tool below asks whether essential personnel may have trouble reaching Buckley.
 </div>
 
 <div class="commute">
@@ -846,20 +846,20 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 </div>
 
 <div class="footer">
-This dashboard combines exact-point NWS data, the NWS forecast zone derived from Buckley's coordinates, KBKF airport observations/forecast information, and current NIFC wildfire incidents. The commute tool checks a sampled geographic corridor rather than an actual driving route. Use COtrip for authoritative roadway impacts. This test version intentionally omits local-specific alert ingestion and focuses on NWS, aviation weather, wildfire, and optional COtrip roadway data.
+This dashboard combines exact-point NWS data, the NWS forecast zone derived from Buckley's coordinates, KBKF airport observations/forecast information, and current NIFC wildfire incidents. The access tool attempts to calculate a driving route to Buckley, checks NWS weather along it, and compares it with the latest cached COtrip roadway information. Use COtrip itself for authoritative roadway information. This test version intentionally omits local-specific alert ingestion and focuses on NWS, aviation weather, wildfire, and optional COtrip roadway data.
 </div>
 </div>
 
 <script>
 const DATA=__DATA__;
+const e=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const BUCKLEY={lat:DATA.facility.latitude,lon:DATA.facility.longitude};
-const COTRIP=DATA.cotrip||{connected:false,reason:'COtrip feed not configured.',events:[]};
+const COTRIP=DATA.cotrip||{connected:false,reason:'COtrip feed not configured.',events:[],feeds:{}};
 const feedSummary=Object.entries(COTRIP.feeds||{}).map(([k,v])=>`${v.ok?'✓':'○'} ${k.replaceAll('_',' ')}${v.ok&&v.records!=null?' ('+v.records+')':''}`).join(' · ');
 document.getElementById('cotripConnection').innerHTML =
   COTRIP.connected
     ? '<strong>COtrip layers:</strong> connected. '+e(COTRIP.reason||'')+'<br>'+e(feedSummary)
-    : '<strong>COtrip layers:</strong> not connected. '+e(COTRIP.reason||'The dashboard still works with NWS weather data.')+'<br>'+e(feedSummary);
-const e=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+    : '<strong>COtrip layers:</strong> not connected. '+e(COTRIP.reason||'The facility alert still works with NWS and KBKF data.')+'<br>'+e(feedSummary);
 
 function renderFacility(r){
   const m=r.metrics||{},met=r.metar||{},taf=r.taf||{},sc=r.status_copy||{};
@@ -872,27 +872,27 @@ function renderFacility(r){
 
   return `<section class="facility">
     <div class="banner ${e(r.status)}">
-      <div><div class="small">${e(r.name)} · ${e(r.icao)} · exact point ${e(r.latitude)}, ${e(r.longitude)} · NWS zone ${e(r.zone||'derived')}</div><div class="small" style="font-weight:700;letter-spacing:.08em">FACILITY ALERT</div><div class="level">${e(sc.label||r.status)}</div><div>${e(sc.summary||'')}</div></div>
+      <div><div class="small" style="font-weight:800;letter-spacing:.08em;color:rgba(255,255,255,.9)">FACILITY ALERT</div><div class="small">${e(r.name)} · ${e(r.icao)} · exact point ${e(r.latitude)}, ${e(r.longitude)} · NWS zone ${e(r.zone||'derived')}</div><div class="level">${e(sc.label||r.status)}</div><div>${e(sc.summary||'')}</div></div>
       <div>Next check: ${e(r.next_check_minutes)} min<br><span class="small">Last checked ${e(new Date(r.checked_at).toLocaleString())}</span></div>
     </div>
     <div class="body">
-      <h3>Facility Alert, What should the manager do?</h3><p><strong>${e(sc.action||'Review current conditions and policy.')}</strong></p>
-      <h3>Current Conditions at Buckley</h3>
+      <h3>What should the facility manager do?</h3><p><strong>${e(sc.action||'Review current conditions and policy.')}</strong></p>
+      <h3>Current Buckley Conditions</h3>
       <div class="grid">
         <div class="metric">Temperature<strong>${met.temperature_f==null?'—':e(met.temperature_f)+'°F'}</strong></div>
         <div class="metric">Current wind<strong>${met.wind_mph==null?'—':e(met.wind_mph)+' mph'}</strong></div>
         <div class="metric">Current gust<strong>${met.gust_mph==null?'—':e(met.gust_mph)+' mph'}</strong></div>
         <div class="metric">Visibility<strong>${met.visibility_sm==null?'—':e(met.visibility_sm)+' mi'}</strong></div>
       </div>
-      <h3>Facility Weather Outlook</h3>
+      <h3>Planning Outlook</h3>
       <div class="grid">
         <div class="metric">Peak gust, 24h<strong>${m.peak_gust_24h_mph==null?'—':e(Math.round(m.peak_gust_24h_mph))+' mph'}</strong></div>
         <div class="metric">Snow, 7 days<strong>${e(m.snow_7d_in??0)} in</strong></div>
         <div class="metric">Ice, 7 days<strong>${e(m.ice_7d_in??0)} in</strong></div>
         <div class="metric">Precipitation, 7 days<strong>${e(m.precip_7d_in??0)} in</strong></div>
       </div>
-      <h3>Why is this facility alert active?</h3>${reasons}
-      <h3>Official Alerts Affecting Buckley</h3>${alerts}
+      <h3>Why is Buckley at this level?</h3>${reasons}
+      <h3>Official Weather Alerts</h3>${alerts}
       <h3>Potential Public-Safety Resource Strain</h3>
       <p><strong class="${strainClass}">${e(strain.level)}</strong></p>
       <p>${(strain.reasons||[]).length?e(strain.reasons.join('; '))+'.':'No major weather-driven strain signal identified by the test rules.'}</p>
@@ -1095,7 +1095,7 @@ async function checkCommute(){
 
     box.innerHTML=`<div class="panel" style="border-left:6px solid ${color}">
       <div class="small">Matched origin: ${e(origin.label)}<br>Destination: ${e(dest.label)}<br>${e(routeMode)}</div>
-      <div class="small" style="font-weight:700;letter-spacing:.08em">ACCESS STATUS</div><h3 style="margin:7px 0">Essential personnel: ${e(commuteLevelName(level))}</h3>
+      <div class="small" style="font-weight:800;letter-spacing:.08em">ACCESS STATUS</div><h3 style="margin:7px 0">Essential personnel: ${e(commuteLevelName(level))}</h3>
       <p><strong>${e(routeInfo)}</strong></p>
       <p>${reasons.length?e(reasons.join('; '))+'.':'No significant NWS route-weather signal or matching COtrip roadway impact was found.'}</p>
       ${roadItems}
