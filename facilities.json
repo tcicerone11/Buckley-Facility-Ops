@@ -1,0 +1,42 @@
+{
+  "settings": {
+    "normal_check_minutes": 30,
+    "watch_check_minutes": 15,
+    "action_check_minutes": 5,
+    "close_check_minutes": 5,
+    "wind_watch_kt": 30,
+    "wind_action_kt": 35,
+    "wind_close_kt": 40,
+    "snow_watch_in": 4,
+    "snow_action_in": 6,
+    "snow_close_in": 8,
+    "precip_watch_in": 2,
+    "precip_action_in": 4,
+    "ice_watch_in": 0.05,
+    "ice_action_in": 0.15,
+    "thunder_watch_hours": 6,
+    "wildfire_watch_miles": 50,
+    "wildfire_action_miles": 20
+  },
+  "facility": {
+    "id": "buckley-sfb",
+    "name": "Buckley Space Force Base",
+    "icao": "KBKF",
+    "latitude": 39.7017611,
+    "longitude": -104.7519611,
+    "gate_address": "18500 East Sixth Avenue, Aurora, CO 80011"
+  },
+  "commute": {
+    "default_origin_name": "Colorado School of Mines",
+    "default_origin_address": "1500 Illinois St, Golden, CO 80401",
+    "weather_sample_points": 5,
+    "lookahead_hours": 12,
+    "cotrip_corridor_radius_miles": 2.5,
+    "regional_publish_radius_miles": 100,
+    "osrm_server": "https://router.project-osrm.org"
+  },
+  "cotrip": {
+    "enabled": true,
+    "note": "Requires only the GitHub Actions secret COTRIP_API_KEY."
+  }
+}
