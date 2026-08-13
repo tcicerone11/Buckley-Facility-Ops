@@ -1,4 +1,22 @@
-# Buckley Facility & Essential Personnel Operations
+# Buckley Facility Weather Alert + Essential Personnel Access
+
+The primary function of this project is the **Buckley Facility Weather Alert**. It retains the same operational model as the earlier Facilities Weather dashboard:
+
+* NORMAL
+* WATCH
+* ACTION
+* CLOSE CRITERIA MET
+
+That facility status is based on weather and official hazard information at Buckley and remains the main alert presented at the top of the page.
+
+The **Can Essential Personnel Get Here?** section is secondary. It uses the employee's selected origin, route weather, and COtrip roadway information to produce a separate access status:
+
+* NORMAL
+* WATCH
+* ACTION
+* ACCESS CRITICAL
+
+The two statuses are deliberately independent. For example, Buckley can be NORMAL while an employee route is ACTION because of a crash, snow-packed highway, or lane restriction.
 
 This is the Buckley-specific test project. It keeps facility closure decisions separate from the ability of essential personnel to reach the installation.
 
