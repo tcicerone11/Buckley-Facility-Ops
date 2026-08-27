@@ -900,7 +900,6 @@ function renderFacility(r){
       <p class="small">${e(strain.note||'')}</p>
       <h3>Wildfire Proximity Screen</h3>${fires}
       <h3>7 Day Buckley Outlook</h3><div class="forecast">${forecast}</div>
-      <details><summary>Technical airport weather details</summary><p class="small">METAR is the coded current KBKF observation. TAF is the coded short-term airport forecast.</p><b>METAR</b><code>${e(met.raw||'Unavailable')}</code><b>TAF</b><code>${e(taf.raw||'Unavailable')}</code></details>
     </div>
   </section>`;
 }
