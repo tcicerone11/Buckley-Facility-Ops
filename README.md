@@ -105,3 +105,28 @@ NORMAL / WATCH / ACTION / ACCESS CRITICAL
 ```
 
 Nominatim usage is user initiated and should remain low volume. Do not add autocomplete or bulk address searches to the public Nominatim service.
+
+
+## Facility Status Guide dropdowns stay synchronized with the decision engine
+
+The NORMAL, WATCH, ACTION, and CLOSE CRITERIA MET boxes on the website are expandable and show the criteria currently used by the facility alert engine.
+
+The numerical descriptions in those dropdowns are generated from the **same `settings` values in `facilities.json` that Python uses to make the facility-status decision**. They are not a second hard-coded set of thresholds in the HTML.
+
+This means the website automatically stays synchronized with configuration changes. For example, if:
+
+```json
+"snow_close_in": 8
+```
+
+is later changed to:
+
+```json
+"snow_close_in": 10
+```
+
+the CLOSE CRITERIA MET dropdown will automatically display 10 inches the next time the dashboard is generated. There is no separate HTML threshold that also needs to be edited.
+
+The NWS event names shown in the WATCH, ACTION, and CLOSE dropdowns are likewise generated from the same `WATCH_EVENTS`, `ACTION_EVENTS`, and `CLOSE_EVENTS` classifications used by `monitor.py`.
+
+For future policy changes, edit numerical thresholds in `facilities.json`. If the official classification of an NWS alert should change, edit the corresponding event set in `monitor.py`.

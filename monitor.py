@@ -772,8 +772,75 @@ def interval_for(status, settings):
     return settings[f"{status}_check_minutes"]
 
 
+
+def facility_criteria(settings):
+    """Build displayed alert criteria from the same settings used by the facility engine."""
+    wind_watch = float(settings["wind_watch_kt"])
+    wind_action = float(settings["wind_action_kt"])
+    wind_close = float(settings["wind_close_kt"])
+
+    snow_watch = float(settings["snow_watch_in"])
+    snow_action = float(settings["snow_action_in"])
+    snow_close = float(settings["snow_close_in"])
+
+    precip_watch = float(settings["precip_watch_in"])
+    precip_action = float(settings["precip_action_in"])
+
+    ice_watch = float(settings.get("ice_watch_in", 0.05))
+    ice_action = float(settings.get("ice_action_in", 0.15))
+
+    wildfire_watch = float(settings.get("wildfire_watch_miles", 50))
+    wildfire_action = float(settings.get("wildfire_action_miles", 20))
+
+    thunder_hours = int(settings.get("thunder_watch_hours", 6))
+
+    def mph(kt):
+        return round(kt_to_mph(kt))
+
+    return {
+        "normal": [
+            "None of the configured WATCH, ACTION, or CLOSE criteria below are currently met.",
+            f"Routine facility weather check interval: every {int(settings['normal_check_minutes'])} minutes.",
+        ],
+        "watch": [
+            f"Wind: {wind_watch:g} to less than {wind_action:g} kt, about {mph(wind_watch)} to {mph(wind_action) - 1} mph.",
+            f"Snow: {snow_watch:g} to less than {snow_action:g} inches in the 7-day point outlook.",
+            f"Liquid precipitation: {precip_watch:g} to less than {precip_action:g} inches in the 7-day outlook.",
+            f"Ice accumulation: {ice_watch:g} to less than {ice_action:g} inches in the 7-day point outlook.",
+            f"Thunderstorm signal within the next {thunder_hours} hours.",
+            f"Current NIFC wildfire incident within {wildfire_watch:g} miles, unless it is close enough to meet ACTION criteria.",
+            "Specified NWS watches/advisories: " + ", ".join(sorted(WATCH_EVENTS)) + ".",
+            f"Facility weather check interval while at WATCH: every {int(settings['watch_check_minutes'])} minutes.",
+        ],
+        "action": [
+            f"Wind: {wind_action:g} to less than {wind_close:g} kt, about {mph(wind_action)} to {mph(wind_close) - 1} mph.",
+            f"Snow: {snow_action:g} to less than {snow_close:g} inches in the 7-day point outlook.",
+            f"Liquid precipitation: {precip_action:g} inches or more. No separate precipitation CLOSE threshold is currently configured.",
+            f"Ice accumulation: {ice_action:g} inches or more. No separate ice CLOSE threshold is currently configured.",
+            f"Current NIFC wildfire incident within {wildfire_action:g} miles. Wildfire distance alone does not currently trigger CLOSE.",
+            "Specified NWS warnings: " + ", ".join(sorted(ACTION_EVENTS)) + ".",
+            f"Facility weather check interval while at ACTION: every {int(settings['action_check_minutes'])} minutes.",
+        ],
+        "close": [
+            f"Wind: {wind_close:g} kt or more, about {mph(wind_close)} mph or more.",
+            f"Snow: {snow_close:g} inches or more in the 7-day point outlook.",
+            "Critical NWS warnings: " + ", ".join(sorted(CLOSE_EVENTS)) + ".",
+            "There is currently no independent CLOSE threshold for liquid precipitation, ice accumulation, thunderstorms, or wildfire distance unless an applicable critical NWS warning also triggers CLOSE.",
+            f"Facility weather check interval while CLOSE criteria are met: every {int(settings['close_check_minutes'])} minutes.",
+        ],
+    }
+
+
+def criteria_html(items):
+    return "".join(f"<li>{item}</li>" for item in items)
+
 def render_html(payload):
     data_json = json.dumps(payload).replace("</", "<\\/")
+    criteria = facility_criteria(payload.get("settings", {}))
+    normal_criteria = criteria_html(criteria["normal"])
+    watch_criteria = criteria_html(criteria["watch"])
+    action_criteria = criteria_html(criteria["action"])
+    close_criteria = criteria_html(criteria["close"])
     html = """<!doctype html>
 <html lang="en">
 <head>
@@ -790,6 +857,7 @@ def render_html(payload):
 .hero h1{margin:0 0 7px}.muted,.small{color:var(--muted)}.small{font-size:13px}.notice{background:#fff4d7;border:1px solid #e2c36a;padding:14px;border-radius:12px;margin:16px 0}
 .legend,.grid,.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px}.legend-card,.metric,.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
 .legend-card.normal{border-top:5px solid var(--normal)}.legend-card.watch{border-top:5px solid var(--watch)}.legend-card.action{border-top:5px solid var(--action)}.legend-card.close{border-top:5px solid var(--close)}
+.legend-card summary{cursor:pointer;font-weight:800}.legend-card summary span{display:block;font-weight:400;margin-top:6px;line-height:1.35}.criteria-list{margin:12px 0 0;padding:10px 0 0 20px;border-top:1px solid var(--line)}.criteria-list li{margin:6px 0;line-height:1.35}
 .facility{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin:20px 0;box-shadow:0 3px 12px rgba(0,0,0,.06)}
 .banner{padding:22px;color:white;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.banner.normal{background:var(--normal)}.banner.watch{background:var(--watch)}.banner.action{background:var(--action)}.banner.close{background:var(--close)}
 .level{font-size:30px;font-weight:900;margin:5px 0}.body{padding:22px}.metric strong{display:block;font-size:22px;margin-top:4px}.reason{border-left:5px solid #aaa;padding:12px 14px;background:#fafafa;margin:9px 0;border-radius:7px}.reason.watch{border-color:var(--watch)}.reason.action{border-color:var(--action)}.reason.close{border-color:var(--close)}.do{font-weight:700;display:block;margin-top:7px}
@@ -812,17 +880,26 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 
 <h2>Facility Status Guide</h2>
 <div class="legend">
-  <div class="legend-card normal"><strong>NORMAL</strong><br>Normal facility operations. Continue routine monitoring.</div>
-  <div class="legend-card watch"><strong>WATCH</strong><br>Weather could affect facility operations. Monitor and prepare.</div>
-  <div class="legend-card action"><strong>ACTION</strong><br>A significant facility weather condition is reached or expected. Take the approved protective action.</div>
-  <div class="legend-card close"><strong>CLOSE CRITERIA MET</strong><br>A test closure threshold or critical official warning is reached. Follow approved closure procedures.</div>
+  <details class="legend-card normal">
+    <summary>NORMAL<span>Normal facility operations. Continue routine monitoring. Click to view criteria.</span></summary>
+    <ul class="criteria-list">__NORMAL_CRITERIA__</ul>
+  </details>
+  <details class="legend-card watch">
+    <summary>WATCH<span>Weather could affect facility operations. Monitor and prepare. Click to view criteria.</span></summary>
+    <ul class="criteria-list">__WATCH_CRITERIA__</ul>
+  </details>
+  <details class="legend-card action">
+    <summary>ACTION<span>A significant facility weather condition is reached or expected. Click to view criteria.</span></summary>
+    <ul class="criteria-list">__ACTION_CRITERIA__</ul>
+  </details>
+  <details class="legend-card close">
+    <summary>CLOSE CRITERIA MET<span>A test closure threshold or critical official warning is reached. Click to view criteria.</span></summary>
+    <ul class="criteria-list">__CLOSE_CRITERIA__</ul>
+  </details>
 </div>
 
 <div id="facility"></div>
 
-<div class="notice" style="background:#e8eef4;border-color:#b8cad8">
-<strong>Separate question:</strong> The facility alert above tells you whether Buckley itself may need an operational change. The tool below asks whether essential personnel may have trouble reaching Buckley.
-</div>
 
 <div class="commute">
   <h2>Can Essential Personnel Get Here?</h2>
@@ -900,6 +977,7 @@ function renderFacility(r){
       <p class="small">${e(strain.note||'')}</p>
       <h3>Wildfire Proximity Screen</h3>${fires}
       <h3>7 Day Buckley Outlook</h3><div class="forecast">${forecast}</div>
+
     </div>
   </section>`;
 }
@@ -1118,6 +1196,10 @@ async function checkCommute(){
 </html>"""
     html = html.replace("__DATA__", data_json)
     html = html.replace("__DEFAULT_ORIGIN__", payload["commute"].get("default_origin_address", ""))
+    html = html.replace("__NORMAL_CRITERIA__", normal_criteria)
+    html = html.replace("__WATCH_CRITERIA__", watch_criteria)
+    html = html.replace("__ACTION_CRITERIA__", action_criteria)
+    html = html.replace("__CLOSE_CRITERIA__", close_criteria)
     return html
 
 
