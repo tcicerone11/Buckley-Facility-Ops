@@ -826,7 +826,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 
 <div class="commute">
   <h2>Can Essential Personnel Get Here?</h2>
-  <p>This calculates a driving route to the Buckley gate when the free OSRM test router is available, checks NWS weather along that route, and compares the route with the latest sanitized COtrip incidents, road conditions, planned events, roadside weather stations, snow plows, travel times, signs, Connected Work Zone data, and WZDx data.</p>
+  <p>Enter any U.S. origin address. The tool locates that address, calculates a driving route to Buckley, checks NWS weather along the route, and compares that route with the latest COtrip incidents, road conditions, planned events, roadside weather stations, snow plows, travel times, signs, Connected Work Zone data, and WZDx data.</p>
   <div class="commute-form">
     <input id="origin" aria-label="Commute origin" placeholder="Enter a home, school, or other address">
     <button onclick="checkCommute()">Check access to Buckley</button>
@@ -845,6 +845,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
 </div>
 
+<div class="small" style="margin-top:14px">Address search uses OpenStreetMap Nominatim. © OpenStreetMap contributors.</div>
 <div class="footer">
 This dashboard combines exact-point NWS data, the NWS forecast zone derived from Buckley's coordinates, KBKF airport observations/forecast information, and current NIFC wildfire incidents. The access tool attempts to calculate a driving route to Buckley, checks NWS weather along it, and compares it with the latest cached COtrip roadway information. Use COtrip itself for authoritative roadway information. This test version intentionally omits local-specific alert ingestion and focuses on NWS, aviation weather, wildfire, and optional COtrip roadway data.
 </div>
@@ -912,13 +913,17 @@ function commuteLevelName(n){return ['NORMAL','WATCH','ACTION','ACCESS CRITICAL'
 function levelColor(n){return ['#237a4b','#a87400','#c45a00','#aa271d'][n]||'#a87400';}
 
 async function geocodeAddress(address){
-  const url='https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address='+encodeURIComponent(address)+'&benchmark=Public_AR_Current&format=json';
-  const res=await fetch(url);
-  if(!res.ok) throw new Error('Address lookup failed.');
+  const url='https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&q='+encodeURIComponent(address);
+  const res=await fetch(url,{headers:{'Accept':'application/json'}});
+  if(!res.ok) throw new Error('Address lookup service could not be reached.');
   const data=await res.json();
-  const hit=data?.result?.addressMatches?.[0];
-  if(!hit) throw new Error('Address was not found by the U.S. Census geocoder.');
-  return {lat:Number(hit.coordinates.y),lon:Number(hit.coordinates.x),label:hit.matchedAddress||address};
+  const hit=Array.isArray(data)?data[0]:null;
+  if(!hit) throw new Error('Address could not be located. Try including street, city, state, and ZIP code.');
+  return {
+    lat:Number(hit.lat),
+    lon:Number(hit.lon),
+    label:hit.display_name||address
+  };
 }
 
 function corridorPoints(a,b,count){
@@ -1055,10 +1060,12 @@ async function checkCommute(){
   box.innerHTML='<div class="panel">Calculating route and checking NWS and COtrip data…</div>';
   try{
     localStorage.setItem('buckleyCommuteOrigin',address);
-    const [origin,dest]=await Promise.all([
-      geocodeAddress(address),
-      geocodeAddress(DATA.facility.gate_address)
-    ]);
+    const origin=await geocodeAddress(address);
+    const dest={
+      lat:Number(DATA.facility.latitude),
+      lon:Number(DATA.facility.longitude),
+      label:DATA.facility.gate_address||DATA.facility.name
+    };
 
     let route,routeMode='calculated driving route';
     try{

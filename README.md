@@ -80,3 +80,28 @@ The workflow generates the HTML and deploys it directly to GitHub Pages.
 ## Important
 
 This is a development decision-support system. The thresholds and access scoring rules are test rules and are not approved Buckley Space Force Base policy.
+
+
+## Route lookup fix
+
+The previous browser version used the U.S. Census geocoder. The Census geocoder does not support browser CORS requests, which caused the access checker to stop with a fetch error.
+
+This version uses OpenStreetMap Nominatim only when the user presses the access-check button. It then uses Buckley's stored coordinates directly as the destination, so Buckley itself does not need to be geocoded.
+
+The route process is:
+
+```text
+Entered address
+    ↓
+Nominatim address lookup
+    ↓
+OSRM driving route to Buckley coordinates
+    ↓
+NWS weather sampled along route
+    +
+COtrip hazards intersecting/near route
+    ↓
+NORMAL / WATCH / ACTION / ACCESS CRITICAL
+```
+
+Nominatim usage is user initiated and should remain low volume. Do not add autocomplete or bulk address searches to the public Nominatim service.
