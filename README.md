@@ -1,54 +1,338 @@
-# Buckley Facility Weather Operations + Essential Personnel Access
+# Buckley Facility Weather Operations
 
-This version restores the original **Facilities Weather** concept as the main dashboard and adds the COtrip commute layer underneath it.
+This is a test decision-support tool for monitoring weather conditions at Buckley Space Force Base and checking whether essential personnel may have weather or roadway problems getting to the installation.
 
-## Primary question: should Buckley change facility operations?
+The dashboard is built around two separate questions:
 
-The first and most prominent section is the Buckley facility alert:
+1. **What is happening at Buckley, and does it meet a facility weather threshold?**
+2. **Can essential personnel reasonably get to Buckley from a specific starting address?**
 
-* NORMAL
-* WATCH
-* ACTION
-* CLOSE CRITERIA MET
+Those answers are intentionally kept separate. Conditions at the installation may be normal while an employee's route is affected by snow, ice, an accident, a closure, or another travel hazard.
 
-It uses Buckley's exact coordinates, NWS point and zone alerts, NWS forecast data, KBKF current aviation observations and forecast, configurable wind/snow/ice/precipitation thresholds, and nearby wildfire information.
+This is a development tool. The current thresholds are test values and are not approved Buckley Space Force Base policy.
 
-The facility status remains the primary alert system and uses the adaptive monitoring cadence in `facilities.json`.
+## Facility status
 
-## Secondary question: can essential personnel get here?
+The main dashboard assigns one of four facility levels:
 
-Under the facility alert is the separate access checker:
+**NORMAL**  
+No configured Watch, Action, or Close criteria are currently met.
 
-* NORMAL
-* WATCH
-* ACTION
-* ACCESS CRITICAL
+**WATCH**  
+Conditions are beginning to approach a level that may affect operations. Continue monitoring and begin planning.
 
-A user can type an address. The page attempts to calculate the driving route to Buckley, checks weather along that route, and compares it with the cached COtrip layers.
+**ACTION**  
+Conditions have reached a configured action threshold or an NWS warning classified at the Action level is active.
 
-COtrip feeds built into the project:
+**CLOSE CRITERIA MET**  
+A configured closure threshold or designated critical NWS warning has been reached. This does not mean the tool is declaring Buckley closed. It means the test criteria for initiating the appropriate closure, restriction, or emergency decision process have been met.
 
-* Incidents
-* Road Conditions
-* Planned Events
-* Weather Stations
-* Snow Plows
-* Destinations / travel times
-* Signs
-* Connected Work Zone
-* WZDx
+The current criteria can be expanded directly on the dashboard under the Facility Status Guide.
 
-The two statuses are independent. Buckley can be NORMAL while an employee route is ACTION or ACCESS CRITICAL.
+## What the facility monitor checks
 
-## One GitHub secret
+The facility assessment currently looks at:
 
-Only this Actions secret is required:
+* Wind and wind gusts
+* Snow accumulation
+* Ice accumulation
+* Liquid precipitation
+* Thunderstorms
+* Visibility and current aviation weather at KBKF
+* NWS watches, warnings, and advisories
+* Wildfire proximity
+* Short-term and seven-day forecast conditions
+
+Buckley is evaluated using its exact configured point:
+
+`39.7017611, -104.7519611`
+
+The NWS forecast zone is derived from that point rather than being manually assigned.
+
+## Weather data flow
+
+The weather portion starts with the NWS `/points` service. Buckley's latitude and longitude are sent to NWS, which returns the Weather Forecast Office, forecast grid, forecast zone, and URLs for the forecast products associated with that exact point.
+
+From there the monitor retrieves the standard forecast, hourly forecast, raw forecast grid data, and active alerts. KBKF aviation observations and terminal forecast information are pulled separately from the Aviation Weather Center.
+
+```text
+Buckley latitude / longitude
+        |
+        v
+NWS /points lookup
+        |
+        +----> NWS 7-day forecast
+        +----> NWS hourly forecast
+        +----> NWS raw forecast grid data
+        +----> NWS forecast zone
+        +----> NWS active point and zone alerts
+        +----> KBKF METAR + TAF
+        +----> Current wildfire incident locations
+        |
+        v
+Threshold and alert evaluation
+        |
+        v
+NORMAL / WATCH / ACTION / CLOSE CRITERIA MET
+```
+
+## Public weather and supporting APIs used
+
+The following are the public endpoints currently used by the project. None of these require the private COtrip API key.
+
+### National Weather Service API
+
+Base service:
+
+`https://api.weather.gov`
+
+Official documentation:
+
+`https://www.weather.gov/documentation/services-web-api`
+
+#### Point metadata
+
+```text
+https://api.weather.gov/points/{latitude},{longitude}
+```
+
+The monitor starts with Buckley's configured latitude and longitude. The response identifies the NWS office, grid point, forecast zone, and URLs for the forecast products that apply to the installation.
+
+The program uses the `forecast`, `forecastHourly`, and `forecastGridData` URLs returned by NWS instead of hard-coding a forecast grid.
+
+#### Seven-day forecast
+
+The URL is supplied by the NWS point response and follows this general form:
+
+```text
+https://api.weather.gov/gridpoints/{office}/{gridX},{gridY}/forecast
+```
+
+This supplies the forecast periods displayed in the seven-day Buckley outlook.
+
+#### Hourly forecast
+
+```text
+https://api.weather.gov/gridpoints/{office}/{gridX},{gridY}/forecast/hourly
+```
+
+This supplies hourly forecast periods used for short-term weather evaluation.
+
+#### Raw forecast grid data
+
+```text
+https://api.weather.gov/gridpoints/{office}/{gridX},{gridY}
+```
+
+This is the underlying digital forecast grid. The monitor uses quantitative grid values for accumulation-related and other threshold calculations.
+
+#### Active alerts for the exact point
+
+```text
+https://api.weather.gov/alerts/active?point={latitude},{longitude}
+```
+
+This checks for active NWS watches, warnings, and advisories that apply to the exact Buckley point.
+
+#### Active alerts for the derived NWS zone
+
+```text
+https://api.weather.gov/alerts/active/zone/{zone}
+```
+
+The zone is obtained from the NWS point lookup. Point and zone alerts are merged and de-duplicated before the facility status is evaluated.
+
+The program classifies selected NWS products into Watch, Action, or Close categories. These classifications are stored in `monitor.py`.
+
+### NOAA Aviation Weather Center API
+
+Base service:
+
+`https://aviationweather.gov/api/data`
+
+Official API documentation:
+
+`https://aviationweather.gov/data/api/`
+
+#### KBKF METAR
+
+```text
+https://aviationweather.gov/api/data/metar?ids=KBKF&format=json
+```
+
+The METAR provides the current aviation observation for KBKF. The monitor uses it as an additional near-facility source for observed conditions such as wind, gusts, and visibility.
+
+#### KBKF TAF
+
+```text
+https://aviationweather.gov/api/data/taf?ids=KBKF&format=json
+```
+
+The TAF provides the terminal forecast for KBKF. The monitor checks it for short-term signals including thunderstorms, snow, and freezing precipitation.
+
+The NWS point forecast remains the main forecast source. METAR and TAF data add airport-specific observation and short-term forecast context.
+
+### Current wildfire incident data
+
+The monitor queries the current WFIGS/NIFC incident-location ArcGIS service:
+
+```text
+https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest/services/WFIGS_Incident_Locations_Current/FeatureServer/0/query
+```
+
+The query is geographically limited around Buckley. Returned incident coordinates are compared with the installation coordinates and the program calculates the distance to each incident.
+
+Wildfire distance can raise the facility status to Watch or Action under the current test configuration. Wildfire distance by itself does not trigger Close Criteria Met.
+
+## Essential personnel access checker
+
+The second part of the dashboard is the route checker.
+
+A user enters a U.S. starting address. The browser geocodes that address, calculates a driving route to Buckley, samples NWS weather along the route, and compares the route with the roadway information collected by the monitor.
+
+The access result is independent of the facility result:
+
+**NORMAL**  
+No significant route hazard was identified by the current checks.
+
+**WATCH**  
+Conditions along the route deserve additional attention.
+
+**ACTION**  
+A more significant weather or roadway problem is affecting or near the route.
+
+**ACCESS CRITICAL**  
+A critical route condition has been identified.
+
+The route checker answers an access question. It does not change the Buckley facility status simply because one employee's route is affected.
+
+## Public services used by the route checker
+
+### OpenStreetMap Nominatim
+
+The test version uses Nominatim to convert the address entered by the user into latitude and longitude coordinates.
+
+`https://nominatim.openstreetmap.org`
+
+The lookup occurs only after the user submits an address. It is not used for autocomplete or bulk geocoding.
+
+### OSRM
+
+The test version uses the public OSRM routing service to calculate the driving route from the geocoded origin to Buckley's stored coordinates.
+
+`https://router.project-osrm.org`
+
+This is being used for development and testing. A production deployment may eventually use a dedicated routing service if stronger availability guarantees or traffic-aware routing are required.
+
+### NWS weather along the route
+
+Weather is sampled at several points along the calculated route.
+
+For each selected route point, the browser uses:
+
+```text
+https://api.weather.gov/points/{latitude},{longitude}
+```
+
+and:
+
+```text
+https://api.weather.gov/alerts/active?point={latitude},{longitude}
+```
+
+The point response supplies the hourly forecast URL for that route location. The checker reviews the local hourly forecast and active alerts for conditions that could affect travel, including wintry precipitation, thunderstorms, and significant NWS alert products.
+
+This is why the access result can differ from the facility result. An employee may encounter different weather between the origin and Buckley than is occurring at the installation itself.
+
+## Roadway data
+
+Colorado roadway information is incorporated into the access check through COtrip/CDOT.
+
+The project can evaluate roadway information such as incidents, road conditions, planned events, roadside weather observations, snow-plow locations, travel-time information, highway signs, and work-zone information.
+
+The COtrip API credential is stored in GitHub Actions as:
 
 `COTRIP_API_KEY`
 
-The confirmed COtrip endpoints are built into `cotrip_integration.py`. The key is appended privately by Python and is never embedded in the public HTML.
+The credential is not written into the generated website or committed to the repository. Specific COtrip request details are intentionally not documented here.
 
-## Repository files
+## Threshold configuration
+
+Numerical facility thresholds are stored in:
+
+`facilities.json`
+
+This includes wind, snow, precipitation, ice, thunderstorm, wildfire, and monitoring-interval settings.
+
+The Facility Status Guide on the website is generated from these same configuration values.
+
+For example, changing:
+
+```json
+"snow_close_in": 8
+```
+
+to:
+
+```json
+"snow_close_in": 10
+```
+
+changes both the decision threshold and the value displayed in the Close Criteria Met dropdown after the next build. There is not a separate copy of the numerical threshold in the webpage that also needs to be edited.
+
+NWS event classifications are maintained in `monitor.py` through `WATCH_EVENTS`, `ACTION_EVENTS`, and `CLOSE_EVENTS`. The alert names displayed in the Facility Status Guide come from those same sets.
+
+## Monitoring schedule
+
+The GitHub Actions workflow wakes up every five minutes. The facility monitor uses the configured operational level to determine the intended monitoring cadence:
+
+```text
+NORMAL    30 minutes
+WATCH     15 minutes
+ACTION     5 minutes
+CLOSE      5 minutes
+```
+
+This allows routine conditions to be checked less aggressively while elevated conditions receive more frequent updates.
+
+## GitHub workflow
+
+The project does not require a separate application server.
+
+```text
+GitHub Actions starts the monitor
+        |
+        v
+Python retrieves current data
+        |
+        v
+monitor.py evaluates facility conditions
+        |
+        +----> roadway data is collected for the access tool
+        |
+        v
+Dashboard HTML is generated
+        |
+        v
+GitHub Pages artifact is uploaded
+        |
+        v
+Updated dashboard is deployed
+```
+
+The workflow file is:
+
+`.github/workflows/weather-monitor.yml`
+
+It can also be run manually from:
+
+`Actions > Buckley Operations Monitor > Run workflow`
+
+GitHub Pages should be configured as:
+
+`Settings > Pages > Source > GitHub Actions`
+
+## Repository layout
 
 ```text
 .github/
@@ -65,68 +349,35 @@ requirements.txt
 README.md
 ```
 
-## GitHub Pages
+`monitor.py` contains the main weather collection, facility decision logic, and generated dashboard.
 
-Set repository:
+`facilities.json` contains the facility coordinates and configurable thresholds.
 
-Settings > Pages > Source > GitHub Actions
+`cotrip_integration.py` handles the roadway-data integration.
 
-Then run:
+`weather-monitor.yml` runs the monitor and deploys the generated site.
 
-Actions > Buckley Operations Monitor > Run workflow
+## Data sources versus reference links
 
-The workflow generates the HTML and deploys it directly to GitHub Pages.
+The dashboard includes links to several additional official situational-awareness resources. A link on the page does not necessarily mean that source is being ingested by the decision engine.
 
-## Important
+For example, DisasterAWARE is currently a reference link only. It is not an automated input to the facility status.
 
-This is a development decision-support system. The thresholds and access scoring rules are test rules and are not approved Buckley Space Force Base policy.
+The current version also does not ingest a dedicated lightning-detection network, USGS stream gauges, or FEMA IPAWS as separate decision-engine feeds.
 
+That distinction is intentional so the dashboard does not imply it is automatically monitoring a source that is only being provided to the user for reference.
 
-## Route lookup fix
+## Current limitations
 
-The previous browser version used the U.S. Census geocoder. The Census geocoder does not support browser CORS requests, which caused the access checker to stop with a fetch error.
+This is a prototype and should be treated as decision support rather than an authoritative closure or travel-safety system.
 
-This version uses OpenStreetMap Nominatim only when the user presses the access-check button. It then uses Buckley's stored coordinates directly as the destination, so Buckley itself does not need to be geocoded.
+* Facility thresholds are test values, not approved Buckley policy.
+* "Close Criteria Met" does not automatically mean the installation is closed.
+* Public APIs can be delayed, unavailable, or incomplete.
+* NWS forecasts and alerts should still be reviewed in their original products when making significant operational decisions.
+* Public Nominatim and OSRM services are being used for low-volume development testing, not as a production service-level architecture.
+* Roadway conditions can change faster than the dashboard refresh cycle.
+* Snow-plow proximity is context only and is not treated as proof that a roadway is clear or safe.
+* The tool does not currently ingest every possible hazard source.
 
-The route process is:
-
-```text
-Entered address
-    ↓
-Nominatim address lookup
-    ↓
-OSRM driving route to Buckley coordinates
-    ↓
-NWS weather sampled along route
-    +
-COtrip hazards intersecting/near route
-    ↓
-NORMAL / WATCH / ACTION / ACCESS CRITICAL
-```
-
-Nominatim usage is user initiated and should remain low volume. Do not add autocomplete or bulk address searches to the public Nominatim service.
-
-
-## Facility Status Guide dropdowns stay synchronized with the decision engine
-
-The NORMAL, WATCH, ACTION, and CLOSE CRITERIA MET boxes on the website are expandable and show the criteria currently used by the facility alert engine.
-
-The numerical descriptions in those dropdowns are generated from the **same `settings` values in `facilities.json` that Python uses to make the facility-status decision**. They are not a second hard-coded set of thresholds in the HTML.
-
-This means the website automatically stays synchronized with configuration changes. For example, if:
-
-```json
-"snow_close_in": 8
-```
-
-is later changed to:
-
-```json
-"snow_close_in": 10
-```
-
-the CLOSE CRITERIA MET dropdown will automatically display 10 inches the next time the dashboard is generated. There is no separate HTML threshold that also needs to be edited.
-
-The NWS event names shown in the WATCH, ACTION, and CLOSE dropdowns are likewise generated from the same `WATCH_EVENTS`, `ACTION_EVENTS`, and `CLOSE_EVENTS` classifications used by `monitor.py`.
-
-For future policy changes, edit numerical thresholds in `facilities.json`. If the official classification of an NWS alert should change, edit the corresponding event set in `monitor.py`.
+The purpose of the project is to put the most relevant information in one place, apply a consistent set of configurable screening criteria, and make it easier for a human decision-maker to see when conditions warrant closer review.
