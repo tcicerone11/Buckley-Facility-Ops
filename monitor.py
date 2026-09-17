@@ -23,6 +23,11 @@ NIFC_INCIDENTS = (
     "WFIGS_Incident_Locations_Current/FeatureServer/0/query"
 )
 
+IPAWS_ARCHIVE = (
+    "https://gis.fema.gov/arcgis/rest/services/FEMA/IPAWS_Archive/"
+    "FeatureServer/1/query"
+)
+
 HEADERS = {
     "User-Agent": "BuckleyFacilityOperations/1.0",
     "Accept": "application/geo+json",
@@ -344,6 +349,89 @@ def fetch_wildfires_near(lat, lon, max_miles=50):
         })
     return sorted(fires, key=lambda f: f["distance_miles"])
 
+
+
+def fetch_ipaws_archive():
+    """
+    Pull recent Colorado records from FEMA's public IPAWS archive.
+
+    IMPORTANT: FEMA intentionally publishes this archive with about a 24-hour
+    delay. These records are for demonstration/historical situational awareness
+    only and must not be treated as live emergency alerts.
+    """
+    cutoff = now_utc() - timedelta(days=7)
+    cutoff_text = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+    params = {
+        "where": f"sent >= TIMESTAMP '{cutoff_text}'",
+        "outFields": (
+            "identifier,sent,status,msgtype,info_event,info_urgency,"
+            "info_severity,info_certainty,info_sendername,info_headline,"
+            "info_description,info_instruction,area_areadesc,info_area_areadesc"
+        ),
+        "returnGeometry": "false",
+        "orderByFields": "sent DESC",
+        "resultRecordCount": 100,
+        "f": "json",
+    }
+    try:
+        data = get_json(IPAWS_ARCHIVE, params=params, headers=AWC_HEADERS)
+        rows = []
+        for feature in data.get("features", []) if isinstance(data, dict) else []:
+            a = feature.get("attributes") or {}
+            area = str(a.get("info_area_areadesc") or a.get("area_areadesc") or "")
+            searchable = " ".join(
+                str(a.get(k) or "")
+                for k in (
+                    "info_sendername", "info_headline", "info_description",
+                    "info_instruction", "info_event", "area_areadesc",
+                    "info_area_areadesc"
+                )
+            ).lower()
+
+            # Keep Colorado/Denver/Aurora/Buckley/Adams/Arapahoe records for
+            # this demonstration view. The archive table has no geometry.
+            if not any(term in searchable for term in (
+                "colorado", " denver", "aurora", "buckley",
+                "adams county", "arapahoe county"
+            )):
+                continue
+
+            sent = a.get("sent")
+            if isinstance(sent, (int, float)):
+                sent = iso(datetime.fromtimestamp(sent / 1000, tz=timezone.utc))
+
+            rows.append({
+                "event": a.get("info_event") or "IPAWS message",
+                "headline": a.get("info_headline") or "",
+                "sender": a.get("info_sendername") or "",
+                "area": area,
+                "severity": a.get("info_severity") or "Unknown",
+                "urgency": a.get("info_urgency") or "Unknown",
+                "certainty": a.get("info_certainty") or "Unknown",
+                "description": a.get("info_description") or "",
+                "instruction": a.get("info_instruction") or "",
+                "sent": sent,
+            })
+
+        return {
+            "connected": True,
+            "delay_notice": (
+                "DEMONSTRATION ONLY: FEMA intentionally delays the public "
+                "IPAWS archive by about 24 hours. Do not use these records as "
+                "live emergency alerts."
+            ),
+            "records": rows[:20],
+        }
+    except Exception as exc:
+        return {
+            "connected": False,
+            "delay_notice": (
+                "DEMONSTRATION ONLY: the FEMA public IPAWS archive is delayed "
+                "about 24 hours and is not a live alert feed."
+            ),
+            "reason": str(exc),
+            "records": [],
+        }
 
 
 def cotrip_auth_headers():
@@ -861,7 +949,7 @@ def render_html(payload):
 .facility{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;margin:20px 0;box-shadow:0 3px 12px rgba(0,0,0,.06)}
 .banner{padding:22px;color:white;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.banner.normal{background:var(--normal)}.banner.watch{background:var(--watch)}.banner.action{background:var(--action)}.banner.close{background:var(--close)}
 .level{font-size:30px;font-weight:900;margin:5px 0}.body{padding:22px}.metric strong{display:block;font-size:22px;margin-top:4px}.reason{border-left:5px solid #aaa;padding:12px 14px;background:#fafafa;margin:9px 0;border-radius:7px}.reason.watch{border-color:var(--watch)}.reason.action{border-color:var(--action)}.reason.close{border-color:var(--close)}.do{font-weight:700;display:block;margin-top:7px}
-.alert{background:#fff9e8;border:1px solid #ead6a0;padding:11px;border-radius:9px;margin:8px 0}.forecast{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}.forecast>div{border:1px solid var(--line);padding:10px;border-radius:9px;background:#fbfcfd}
+.alert{background:#fff9e8;border:1px solid #ead6a0;padding:11px;border-radius:9px;margin:8px 0}.ipaws-demo{background:#fff4d7;border:1px solid #d5a82d;border-radius:12px;padding:14px;margin:10px 0}.ipaws-record{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px;margin:8px 0}.forecast{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}.forecast>div{border:1px solid var(--line);padding:10px;border-radius:9px;background:#fbfcfd}
 h2{margin-top:28px}h3{margin-top:25px}.commute{background:#eaf2f8;border:1px solid #b8cfdf;border-radius:16px;padding:20px;margin:22px 0}.commute-form{display:flex;gap:8px;flex-wrap:wrap}.commute-form input{flex:1;min-width:260px;padding:12px;border:1px solid #aab7c2;border-radius:9px}.commute-form button,.button{background:var(--blue);color:white;border:0;border-radius:9px;padding:11px 15px;text-decoration:none;display:inline-block;cursor:pointer}
 .button.secondary{background:#546576}.source-link{display:block;background:white;border:1px solid var(--line);border-radius:10px;padding:12px;text-decoration:none;color:var(--ink)}.source-link strong{display:block;color:var(--blue)}
 .strain-low{color:var(--normal)}.strain-elevated{color:var(--watch)}.strain-high{color:var(--close)}
@@ -901,6 +989,16 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 <div id="facility"></div>
 
 
+<div class="panel" style="margin:20px 0">
+  <h2>FEMA IPAWS Public Alert Archive</h2>
+  <div class="ipaws-demo">
+    <strong>DEMONSTRATION / DELAYED DATA</strong><br>
+    FEMA intentionally publishes this public IPAWS archive with approximately a 24-hour delay. These messages are displayed only to demonstrate how IPAWS information could appear if live All-Hazards Feed access is later approved. They do not affect the Buckley facility status.
+  </div>
+  <div id="ipawsArchive"></div>
+</div>
+
+
 <div class="commute">
   <h2>Can Essential Personnel Get Here?</h2>
   <p>Enter any U.S. origin address. The tool locates that address, calculates a driving route to Buckley, checks NWS weather along the route, and compares that route with the latest COtrip incidents, road conditions, planned events, roadside weather stations, snow plows, travel times, signs, Connected Work Zone data, and WZDx data.</p>
@@ -919,6 +1017,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <a class="source-link" href="https://www.weather.gov/bou/winter" target="_blank" rel="noopener"><strong>NWS Probabilistic Winter Planning</strong>Snow and ice ranges and exceedance probabilities for planning.</a>
   <a class="source-link" href="https://www.weather.gov/bou/neco_firedss" target="_blank" rel="noopener"><strong>NWS Fire Weather Decision Support</strong>Point and regional fire-weather planning.</a>
   <a class="source-link" href="https://disasteralert.pdc.org/disasteralert/" target="_blank" rel="noopener"><strong>DisasterAWARE Public</strong>Broader multi-hazard situational awareness.</a>
+  <a class="source-link" href="https://www.fema.gov/emergency-managers/practitioners/integrated-public-alert-warning-system" target="_blank" rel="noopener"><strong>FEMA IPAWS</strong>National public alert and warning system. Dashboard demonstration uses the delayed public archive, not the live IPAWS feed.</a>
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
   <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
 </div>
@@ -983,6 +1082,29 @@ function renderFacility(r){
   </section>`;
 }
 document.getElementById('facility').innerHTML=renderFacility(DATA.facility);
+
+function renderIpawsArchive(){
+  const box=document.getElementById('ipawsArchive');
+  const feed=DATA.ipaws_archive||{connected:false,records:[]};
+  if(!feed.connected){
+    box.innerHTML=`<p class="muted">FEMA IPAWS archive could not be loaded for this update.${feed.reason?' '+e(feed.reason):''}</p>`;
+    return;
+  }
+  if(!(feed.records||[]).length){
+    box.innerHTML='<p class="muted">No recent Colorado-area IPAWS archive records matched this demonstration screen.</p>';
+    return;
+  }
+  box.innerHTML=(feed.records||[]).map(a=>`<div class="ipaws-record">
+    <b>${e(a.event||'IPAWS message')}</b>${a.severity?' · '+e(a.severity):''}<br>
+    ${a.headline?'<strong>'+e(a.headline)+'</strong><br>':''}
+    ${a.area?'<span class="small">Area: '+e(a.area)+'</span><br>':''}
+    ${a.sender?'<span class="small">Sender: '+e(a.sender)+'</span><br>':''}
+    ${a.sent?'<span class="small">Sent: '+e(new Date(a.sent).toLocaleString())+' · archived/delayed</span>':''}
+    ${a.instruction?'<p><strong>Instruction:</strong> '+e(a.instruction)+'</p>':''}
+  </div>`).join('');
+}
+renderIpawsArchive();
+
 
 const saved=localStorage.getItem('buckleyCommuteOrigin');
 document.getElementById('origin').value=saved||DATA.commute.default_origin_address||'';
@@ -1263,6 +1385,7 @@ def main(force=False):
         "facility": result,
         "commute": config.get("commute", {}),
         "cotrip": cotrip,
+        "ipaws_archive": fetch_ipaws_archive(),
         "settings": settings_for_page,
     }
 
