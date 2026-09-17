@@ -388,11 +388,13 @@ def fetch_ipaws_archive():
                 )
             ).lower()
 
-            # Keep Colorado/Denver/Aurora/Buckley/Adams/Arapahoe records for
-            # this demonstration view. The archive table has no geometry.
+            # Limit the demonstration to Aurora/Buckley and the counties
+            # immediately surrounding Aurora. Do not include statewide
+            # Colorado records merely because they mention Colorado.
             if not any(term in searchable for term in (
-                "colorado", " denver", "aurora", "buckley",
-                "adams county", "arapahoe county"
+                "aurora", "buckley",
+                "adams county", "arapahoe county", "denver county",
+                "douglas county"
             )):
                 continue
 
