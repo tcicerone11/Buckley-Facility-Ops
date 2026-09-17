@@ -854,7 +854,7 @@ def render_html(payload):
 }
 *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--ink)}
 .wrap{max-width:1180px;margin:auto;padding:24px}.hero{background:#12263a;color:white;padding:24px;border-radius:18px;margin-bottom:18px}
-.hero h1{margin:0 0 7px}.muted,.small{color:var(--muted)}.small{font-size:13px}.notice{background:#fff4d7;border:1px solid #e2c36a;padding:14px;border-radius:12px;margin:16px 0}
+.hero h1{margin:0 0 7px}.muted,.small{color:var(--muted)}.small{font-size:13px}.banner .small{color:rgba(255,255,255,.95)}.notice{background:#fff4d7;border:1px solid #e2c36a;padding:14px;border-radius:12px;margin:16px 0}
 .legend,.grid,.links{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:10px}.legend-card,.metric,.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
 .legend-card.normal{border-top:5px solid var(--normal)}.legend-card.watch{border-top:5px solid var(--watch)}.legend-card.action{border-top:5px solid var(--action)}.legend-card.close{border-top:5px solid var(--close)}
 .legend-card summary{cursor:pointer;font-weight:800}.legend-card summary span{display:block;font-weight:400;margin-top:6px;line-height:1.35}.criteria-list{margin:12px 0 0;padding:10px 0 0 20px;border-top:1px solid var(--line)}.criteria-list li{margin:6px 0;line-height:1.35}
