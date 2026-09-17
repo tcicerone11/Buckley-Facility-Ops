@@ -920,6 +920,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <a class="source-link" href="https://www.weather.gov/bou/neco_firedss" target="_blank" rel="noopener"><strong>NWS Fire Weather Decision Support</strong>Point and regional fire-weather planning.</a>
   <a class="source-link" href="https://disasteralert.pdc.org/disasteralert/" target="_blank" rel="noopener"><strong>DisasterAWARE Public</strong>Broader multi-hazard situational awareness.</a>
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
+  <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
 </div>
 
 <div class="small" style="margin-top:14px">Address search uses OpenStreetMap Nominatim. © OpenStreetMap contributors.</div>
