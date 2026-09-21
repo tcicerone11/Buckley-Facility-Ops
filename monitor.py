@@ -1013,10 +1013,12 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 
 <div class="commute">
   <h2>Can Essential Personnel Get Here?</h2>
-  <p>Enter any U.S. origin address. The tool locates that address, calculates a driving route to Buckley, checks NWS weather along the route, and compares that route with the latest COtrip incidents, road conditions, planned events, roadside weather stations, snow plows, travel times, signs, Connected Work Zone data, and WZDx data.</p>
+  
   <div class="commute-form">
     <input id="origin" aria-label="Commute origin" placeholder="Enter a home, school, or other address">
     <button onclick="checkCommute()">Check access to Buckley</button>
+<p class="muted">Enter any U.S. origin address. The tool locates that address, calculates a driving route to Buckley, checks NWS weather along the route, and compares available road hazards with the route. Road-condition and incident data currently come from COtrip/CDOT, so detailed road information is limited to Colorado. Routes beginning outside Colorado can still use available weather information, but road hazards outside Colorado may not be represented until the route enters Colorado.</p>
+
   </div>
   <div class="small" style="margin-top:8px">Default example: __DEFAULT_ORIGIN__. Your last search is stored only in this browser.</div>
   <div id="cotripConnection" class="small" style="margin-top:12px"></div>
@@ -1086,7 +1088,7 @@ function renderFacility(r){
       <div>Next check: ${e(r.next_check_minutes)} min<br><span class="small">Last checked ${e(new Date(r.checked_at).toLocaleString())}</span></div>
     </div>
     <div class="body">
-      <h3>What should the facility manager do?</h3><p><strong>${e(sc.action||'Review current conditions and policy.')}</strong></p>
+      <h3></h3><p><strong>${e(sc.action||'Review current conditions and policy.')}</strong></p>
       <h3>Current Buckley Conditions</h3>
       <div class="grid">
         <div class="metric">Temperature<strong>${met.temperature_f==null?'—':e(met.temperature_f)+'°F'}</strong></div>
@@ -1099,16 +1101,7 @@ function renderFacility(r){
         <div class="metric">Peak gust, 24h<strong>${m.peak_gust_24h_mph==null?'—':e(Math.round(m.peak_gust_24h_mph))+' mph'}</strong></div>
         <div class="metric">Snow, 7 days<strong>${e(m.snow_7d_in??0)} in</strong></div>
         <div class="metric">Ice, 7 days<strong>${e(m.ice_7d_in??0)} in</strong></div>
-        <div class="metric">Precipitation, 7 days<strong>${e(m.precip_7d_in??0)} in</strong></div>
-      </div>
-      <h3>Why is Buckley at this level?</h3>${reasons}
-      <h3>Official Weather Alerts</h3>${alerts}
-      <h3>Potential Public-Safety Resource Strain</h3>
-      <p><strong class="${strainClass}">${e(strain.level)}</strong></p>
-      <p>${(strain.reasons||[]).length?e(strain.reasons.join('; '))+'.':'No major weather-driven strain signal identified by the test rules.'}</p>
-      <p class="small">${e(strain.note||'')}</p>
-      <h3>Wildfire Proximity Screen</h3>${fires}
-      <h3>7 Day Buckley Outlook</h3><div class="forecast">${forecast}</div>
+        
 
     </div>
   </section>`;
