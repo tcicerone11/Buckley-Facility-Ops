@@ -385,21 +385,32 @@ def fetch_ipaws_archive():
                 or a.get("areaDescription")
                 or ""
             )
-            searchable = " ".join(
-                str(a.get(k) or "")
-                for k in (
-                    "senderName", "headline", "description", "instruction",
-                    "event", "areaDesc", "area", "areaDescription"
-                )
-            ).lower()
-
-            # Aurora/Buckley and counties surrounding Aurora only.
-            if not any(term in searchable for term in (
+            local_terms = (
                 "aurora", "buckley",
                 "adams county", "arapahoe county", "denver county",
                 "douglas county"
-            )):
-                continue
+            )
+            area_searchable = " ".join(
+                str(a.get(k) or "")
+                for k in ("areaDesc", "area", "areaDescription")
+            ).lower()
+            fallback_searchable = " ".join(
+                str(a.get(k) or "")
+                for k in (
+                    "senderName", "headline", "description", "instruction", "event"
+                )
+            ).lower()
+
+            # Prefer CAP/IPAWS affected-area fields. Only fall back to alert text
+            # when OpenFEMA did not provide a usable area description.
+            if area_searchable.strip():
+                if not any(term in area_searchable for term in local_terms):
+                    continue
+                geo_match = "affected area"
+            else:
+                if not any(term in fallback_searchable for term in local_terms):
+                    continue
+                geo_match = "text fallback"
 
             rows.append({
                 "event": a.get("event") or "IPAWS message",
@@ -412,6 +423,7 @@ def fetch_ipaws_archive():
                 "description": a.get("description") or "",
                 "instruction": a.get("instruction") or "",
                 "sent": a.get("sent") or a.get("sentDate") or "",
+                "geo_match": geo_match,
             })
 
         return {
@@ -987,6 +999,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   </details>
 </div>
 
+<div id="sourceHealth" class="source-health"></div>
 <div id="facility"></div>
 
 
@@ -1022,6 +1035,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
   <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
   <a class="source-link" href="https://warn.pbs.org/" target="_blank" rel="noopener"><strong>PBS WARN</strong>Public access to the PBS Warning, Alert and Response Network.</a>
+  <a class="source-link" href="https://cap-map.com/?hours=24&live=true&lab=true&napsg=false&hideExpired=false&weather=true" target="_blank" rel="noopener"><strong>FEMA IPAWS Emergency Alerts Map (Third Party)</strong>Independent CAP/IPAWS visualization for situational reference. Not an official FEMA source and not used for dashboard status decisions.</a>
 </div>
 
 <div class="small" style="margin-top:14px">Address search uses OpenStreetMap Nominatim. © OpenStreetMap contributors.</div>
@@ -1031,6 +1045,21 @@ This dashboard combines exact-point NWS data, the NWS forecast zone derived from
 </div>
 
 <script>
+function renderSourceHealth(){
+  const el=document.getElementById('sourceHealth');
+  if(!el) return;
+  const p=DATA||{};
+  const r=p.report||p;
+  const ip=p.ipaws_archive||{};
+  const c=p.cotrip||{};
+  const items=[
+    ['NWS', true, 'active point/zone alerts'],
+    ['COtrip', c.connected !== false, c.connected === false ? 'unavailable' : 'connected'],
+    ['IPAWS Archive', ip.connected === true, ip.connected === true ? 'archive connected' : 'archive unavailable']
+  ];
+  el.innerHTML=items.map(x=>`<span><b>${e(x[0])}</b> · ${e(x[2])}</span>`).join('');
+}
+
 const DATA=__DATA__;
 const e=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const BUCKLEY={lat:DATA.facility.latitude,lon:DATA.facility.longitude};
@@ -1333,6 +1362,8 @@ async function checkCommute(){
   }
 }
 
+
+renderSourceHealth();
 </script>
 </body>
 </html>"""
