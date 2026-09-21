@@ -1027,13 +1027,12 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
 
 <h2>Official Access & Situational-Awareness Sources</h2>
 <div class="links">
+  <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
   <a class="source-link" href="https://www.cotrip.org/" target="_blank" rel="noopener"><strong>COtrip / CDOT</strong>Actual Colorado road conditions, closures, construction, and travel information.</a>
   <a class="source-link" href="https://www.weather.gov/bou/winter" target="_blank" rel="noopener"><strong>NWS Probabilistic Winter Planning</strong>Snow and ice ranges and exceedance probabilities for planning.</a>
   <a class="source-link" href="https://www.weather.gov/bou/neco_firedss" target="_blank" rel="noopener"><strong>NWS Fire Weather Decision Support</strong>Point and regional fire-weather planning.</a>
   <a class="source-link" href="https://disasteralert.pdc.org/disasteralert/" target="_blank" rel="noopener"><strong>DisasterAWARE Public</strong>Broader multi-hazard situational awareness.</a>
-  <a class="source-link" href="https://www.fema.gov/emergency-managers/practitioners/integrated-public-alert-warning-system" target="_blank" rel="noopener"><strong>FEMA IPAWS</strong>National public alert and warning system. Dashboard demonstration uses OpenFEMA IpawsArchivedAlerts, not the live IPAWS feed.</a>
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
-  <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
   <a class="source-link" href="https://warn.pbs.org/" target="_blank" rel="noopener"><strong>PBS WARN</strong>Public access to the PBS Warning, Alert and Response Network.</a>
   <a class="source-link" href="https://cap-map.com/?hours=24&live=true&lab=true&napsg=false&hideExpired=false&weather=true" target="_blank" rel="noopener"><strong>FEMA IPAWS Emergency Alerts Map (Third Party)</strong>Independent CAP/IPAWS visualization for situational reference. Not an official FEMA source and not used for dashboard status decisions.</a>
 </div>
