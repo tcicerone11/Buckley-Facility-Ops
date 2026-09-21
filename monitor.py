@@ -998,8 +998,6 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
     <ul class="criteria-list">__CLOSE_CRITERIA__</ul>
   </details>
 </div>
-
-<div id="sourceHealth" class="source-health"></div>
 <div id="facility"></div>
 
 
@@ -1045,20 +1043,6 @@ This dashboard combines exact-point NWS data, the NWS forecast zone derived from
 </div>
 
 <script>
-function renderSourceHealth(){
-  const el=document.getElementById('sourceHealth');
-  if(!el) return;
-  const p=DATA||{};
-  const r=p.report||p;
-  const ip=p.ipaws_archive||{};
-  const c=p.cotrip||{};
-  const items=[
-    ['NWS', true, 'active point/zone alerts'],
-    ['COtrip', c.connected !== false, c.connected === false ? 'unavailable' : 'connected'],
-    ['IPAWS Archive', ip.connected === true, ip.connected === true ? 'archive connected' : 'archive unavailable']
-  ];
-  el.innerHTML=items.map(x=>`<span><b>${e(x[0])}</b> · ${e(x[2])}</span>`).join('');
-}
 
 const DATA=__DATA__;
 const e=s=>String(s??'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
@@ -1363,7 +1347,6 @@ async function checkCommute(){
 }
 
 
-renderSourceHealth();
 </script>
 </body>
 </html>"""
