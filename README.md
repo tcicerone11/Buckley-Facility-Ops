@@ -381,3 +381,16 @@ This is a prototype and should be treated as decision support rather than an aut
 * The tool does not currently ingest every possible hazard source.
 
 The purpose of the project is to put the most relevant information in one place, apply a consistent set of configurable screening criteria, and make it easier for a human decision-maker to see when conditions warrant closer review.
+
+## Emergency alert APIs
+
+**NWS Active Alerts**  
+`https://api.weather.gov/alerts/active?point={latitude},{longitude}`  
+`https://api.weather.gov/alerts/active/zone/{zone}`
+
+The monitor checks active NWS alerts for Buckley's exact coordinates (`39.7017611,-104.7519611`) and its derived NWS forecast zone (`COZ040`). Duplicate point/zone alerts are removed. NWS events are then mapped to the configured WATCH, ACTION, or CLOSE criteria. Alert cards also show severity, urgency, certainty, affected area, timing, description, instructions, sender, and the official alert link when provided.
+
+**OpenFEMA IPAWS Archived Alerts**  
+`https://www.fema.gov/api/open/v1/IpawsArchivedAlerts`
+
+IPAWS is displayed as archive/demo data only and does not affect facility status. Returned records are filtered for references to **Aurora, Buckley, Adams County, Arapahoe County, Denver County, or Douglas County**. The public archive is not the live IPAWS All-Hazards Information Feed.

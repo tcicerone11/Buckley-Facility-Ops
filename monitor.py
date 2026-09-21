@@ -23,10 +23,7 @@ NIFC_INCIDENTS = (
     "WFIGS_Incident_Locations_Current/FeatureServer/0/query"
 )
 
-IPAWS_ARCHIVE = (
-    "https://gis.fema.gov/arcgis/rest/services/FEMA/IPAWS_Archive/"
-    "FeatureServer/1/query"
-)
+IPAWS_ARCHIVE = "https://www.fema.gov/api/open/v1/IpawsArchivedAlerts"
 
 HEADERS = {
     "User-Agent": "BuckleyFacilityOperations/1.0",
@@ -272,7 +269,17 @@ def alert_from_feature(feature, source):
         "headline": p.get("headline") or "",
         "severity": p.get("severity") or "Unknown",
         "urgency": p.get("urgency") or "Unknown",
+        "certainty": p.get("certainty") or "Unknown",
+        "sent": p.get("sent") or "",
+        "effective": p.get("effective") or "",
+        "onset": p.get("onset") or "",
         "expires": p.get("expires"),
+        "area_desc": p.get("areaDesc") or "",
+        "description": p.get("description") or "",
+        "instruction": p.get("instruction") or "",
+        "response": p.get("response") or "",
+        "sender_name": p.get("senderName") or p.get("sender") or "",
+        "web": p.get("web") or feature.get("id") or "",
         "source": source,
     }
 
@@ -353,44 +360,40 @@ def fetch_wildfires_near(lat, lon, max_miles=50):
 
 def fetch_ipaws_archive():
     """
-    Pull recent Colorado records from FEMA's public IPAWS archive.
+    Pull recent Aurora/Buckley-area records from FEMA's public OpenFEMA
+    IpawsArchivedAlerts API.
 
-    IMPORTANT: FEMA intentionally publishes this archive with about a 24-hour
-    delay. These records are for demonstration/historical situational awareness
-    only and must not be treated as live emergency alerts.
+    IMPORTANT: this is an archive, not the live IPAWS All-Hazards feed.
+    Archived records must not be treated as current emergency alerts.
     """
-    cutoff = now_utc() - timedelta(days=7)
-    cutoff_text = cutoff.strftime("%Y-%m-%d %H:%M:%S")
     params = {
-        "where": f"sent >= TIMESTAMP '{cutoff_text}'",
-        "outFields": (
-            "identifier,sent,status,msgtype,info_event,info_urgency,"
-            "info_severity,info_certainty,info_sendername,info_headline,"
-            "info_description,info_instruction,area_areadesc,info_area_areadesc"
-        ),
-        "returnGeometry": "false",
-        "orderByFields": "sent DESC",
-        "resultRecordCount": 100,
-        "f": "json",
+        "$top": 500,
+        "$orderby": "sent desc",
     }
     try:
         data = get_json(IPAWS_ARCHIVE, params=params, headers=AWC_HEADERS)
+        records = data.get("IpawsArchivedAlerts", []) if isinstance(data, dict) else []
         rows = []
-        for feature in data.get("features", []) if isinstance(data, dict) else []:
-            a = feature.get("attributes") or {}
-            area = str(a.get("info_area_areadesc") or a.get("area_areadesc") or "")
+
+        for a in records:
+            if not isinstance(a, dict):
+                continue
+
+            area = str(
+                a.get("areaDesc")
+                or a.get("area")
+                or a.get("areaDescription")
+                or ""
+            )
             searchable = " ".join(
                 str(a.get(k) or "")
                 for k in (
-                    "info_sendername", "info_headline", "info_description",
-                    "info_instruction", "info_event", "area_areadesc",
-                    "info_area_areadesc"
+                    "senderName", "headline", "description", "instruction",
+                    "event", "areaDesc", "area", "areaDescription"
                 )
             ).lower()
 
-            # Limit the demonstration to Aurora/Buckley and the counties
-            # immediately surrounding Aurora. Do not include statewide
-            # Colorado records merely because they mention Colorado.
+            # Aurora/Buckley and counties surrounding Aurora only.
             if not any(term in searchable for term in (
                 "aurora", "buckley",
                 "adams county", "arapahoe county", "denver county",
@@ -398,29 +401,25 @@ def fetch_ipaws_archive():
             )):
                 continue
 
-            sent = a.get("sent")
-            if isinstance(sent, (int, float)):
-                sent = iso(datetime.fromtimestamp(sent / 1000, tz=timezone.utc))
-
             rows.append({
-                "event": a.get("info_event") or "IPAWS message",
-                "headline": a.get("info_headline") or "",
-                "sender": a.get("info_sendername") or "",
+                "event": a.get("event") or "IPAWS message",
+                "headline": a.get("headline") or "",
+                "sender": a.get("senderName") or a.get("sender") or "",
                 "area": area,
-                "severity": a.get("info_severity") or "Unknown",
-                "urgency": a.get("info_urgency") or "Unknown",
-                "certainty": a.get("info_certainty") or "Unknown",
-                "description": a.get("info_description") or "",
-                "instruction": a.get("info_instruction") or "",
-                "sent": sent,
+                "severity": a.get("severity") or "Unknown",
+                "urgency": a.get("urgency") or "Unknown",
+                "certainty": a.get("certainty") or "Unknown",
+                "description": a.get("description") or "",
+                "instruction": a.get("instruction") or "",
+                "sent": a.get("sent") or a.get("sentDate") or "",
             })
 
         return {
             "connected": True,
             "delay_notice": (
-                "DEMONSTRATION ONLY: FEMA intentionally delays the public "
-                "IPAWS archive by about 24 hours. Do not use these records as "
-                "live emergency alerts."
+                "DEMONSTRATION / ARCHIVE DATA: OpenFEMA IpawsArchivedAlerts "
+                "is not the live IPAWS All-Hazards Information Feed. These "
+                "records do not affect Buckley facility status."
             ),
             "records": rows[:20],
         }
@@ -428,8 +427,8 @@ def fetch_ipaws_archive():
         return {
             "connected": False,
             "delay_notice": (
-                "DEMONSTRATION ONLY: the FEMA public IPAWS archive is delayed "
-                "about 24 hours and is not a live alert feed."
+                "DEMONSTRATION / ARCHIVE DATA: OpenFEMA IpawsArchivedAlerts "
+                "is not a live emergency-alert feed."
             ),
             "reason": str(exc),
             "records": [],
@@ -995,7 +994,7 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <h2>FEMA IPAWS Public Alert Archive</h2>
   <div class="ipaws-demo">
     <strong>DEMONSTRATION / DELAYED DATA</strong><br>
-    FEMA intentionally publishes this public IPAWS archive with approximately a 24-hour delay. These messages are displayed only to demonstrate how IPAWS information could appear if live All-Hazards Feed access is later approved. They do not affect the Buckley facility status.
+    This demonstration uses FEMA's public OpenFEMA IpawsArchivedAlerts dataset. It is an archive, not the live IPAWS All-Hazards Information Feed. These messages show how IPAWS information could appear if live-feed access is later approved, and they do not affect the Buckley facility status.
   </div>
   <div id="ipawsArchive"></div>
 </div>
@@ -1019,9 +1018,10 @@ details{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}summar
   <a class="source-link" href="https://www.weather.gov/bou/winter" target="_blank" rel="noopener"><strong>NWS Probabilistic Winter Planning</strong>Snow and ice ranges and exceedance probabilities for planning.</a>
   <a class="source-link" href="https://www.weather.gov/bou/neco_firedss" target="_blank" rel="noopener"><strong>NWS Fire Weather Decision Support</strong>Point and regional fire-weather planning.</a>
   <a class="source-link" href="https://disasteralert.pdc.org/disasteralert/" target="_blank" rel="noopener"><strong>DisasterAWARE Public</strong>Broader multi-hazard situational awareness.</a>
-  <a class="source-link" href="https://www.fema.gov/emergency-managers/practitioners/integrated-public-alert-warning-system" target="_blank" rel="noopener"><strong>FEMA IPAWS</strong>National public alert and warning system. Dashboard demonstration uses the delayed public archive, not the live IPAWS feed.</a>
+  <a class="source-link" href="https://www.fema.gov/emergency-managers/practitioners/integrated-public-alert-warning-system" target="_blank" rel="noopener"><strong>FEMA IPAWS</strong>National public alert and warning system. Dashboard demonstration uses OpenFEMA IpawsArchivedAlerts, not the live IPAWS feed.</a>
   <a class="source-link" href="https://www.nifc.gov/nicc/incident-information/national-incident-map" target="_blank" rel="noopener"><strong>NIFC Current Incidents</strong>Authoritative current wildland-fire incident information.</a>
   <a class="source-link" href="https://radar.weather.gov/" target="_blank" rel="noopener"><strong>NWS Radar</strong>Official National Weather Service radar for current precipitation and storm activity.</a>
+  <a class="source-link" href="https://warn.pbs.org/" target="_blank" rel="noopener"><strong>PBS WARN</strong>Public access to the PBS Warning, Alert and Response Network.</a>
 </div>
 
 <div class="small" style="margin-top:14px">Address search uses OpenStreetMap Nominatim. © OpenStreetMap contributors.</div>
@@ -1044,7 +1044,24 @@ document.getElementById('cotripConnection').innerHTML =
 function renderFacility(r){
   const m=r.metrics||{},met=r.metar||{},taf=r.taf||{},sc=r.status_copy||{};
   const reasons=(r.reasons||[]).length?r.reasons.map(x=>`<div class="reason ${e(x.level)}"><b>${e(x.title)}</b><br>${e(x.detail)}<span class="do">What to do: ${e(x.action)}</span></div>`).join(''):'<p class="muted">No configured test threshold is currently triggered.</p>';
-  const alerts=(r.alerts||[]).length?r.alerts.map(a=>`<div class="alert"><b>${e(a.event)}</b><br>${e(a.headline||'Official NWS alert')}<br><span class="small">${e(a.source||'NWS')}</span></div>`).join(''):'<p class="muted">No active official NWS alerts found for the exact Buckley point or its derived forecast zone.</p>';
+  const alerts=(r.alerts||[]).length?r.alerts.map(a=>`<div class="alert">
+    <b>${e(a.event)}</b><br>
+    ${e(a.headline||'Official NWS alert')}
+    <div class="small" style="margin-top:7px">
+      <b>Severity:</b> ${e(a.severity||'Unknown')} &nbsp; 
+      <b>Urgency:</b> ${e(a.urgency||'Unknown')} &nbsp; 
+      <b>Certainty:</b> ${e(a.certainty||'Unknown')}
+      ${a.area_desc?`<br><b>Affected area:</b> ${e(a.area_desc)}`:''}
+      ${a.sent?`<br><b>Issued:</b> ${e(a.sent)}`:''}
+      ${a.onset?`<br><b>Onset:</b> ${e(a.onset)}`:''}
+      ${a.expires?`<br><b>Expires:</b> ${e(a.expires)}`:''}
+      <br><b>Source:</b> ${e(a.source||'NWS')}
+      ${a.sender_name?`<br><b>Sender:</b> ${e(a.sender_name)}`:''}
+    </div>
+    ${a.description?`<div style="margin-top:8px">${e(a.description)}</div>`:''}
+    ${a.instruction?`<div style="margin-top:8px"><b>Official instruction:</b> ${e(a.instruction)}</div>`:''}
+    ${a.web?`<div style="margin-top:8px"><a href="${e(a.web)}" target="_blank" rel="noopener">Open official NWS alert</a></div>`:''}
+  </div>`).join(''):'<p class="muted">No active official NWS alerts found for the exact Buckley point or its derived forecast zone.</p>';
   const forecast=(r.forecast||[]).map(p=>`<div><b>${e(p.name)}</b><br>${e(p.temperature)}°${e(p.temperatureUnit)}<br>${e(p.shortForecast)}<br><span class="small">${e(p.windSpeed)} ${e(p.windDirection)}</span></div>`).join('');
   const fires=(r.wildfires||[]).length?r.wildfires.map(f=>`<div class="alert"><b>${e(f.name)}</b> · about ${e(f.distance_miles)} mi away${f.acres?` · ${e(f.acres)} acres`:''}</div>`).join(''):'<p class="muted">No current NIFC wildfire incident points found within the configured regional screening radius.</p>';
   const strain=r.resource_strain||{level:'LOW',reasons:[]};
