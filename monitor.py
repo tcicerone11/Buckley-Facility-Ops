@@ -1057,7 +1057,9 @@ document.getElementById('cotripConnection').innerHTML =
 
 function renderFacility(r){
   const m=r.metrics||{},met=r.metar||{},taf=r.taf||{},sc=r.status_copy||{};
-  const reasons=(r.reasons||[]).length?r.reasons.map(x=>`<div class="reason ${e(x.level)}"><b>${e(x.title)}</b><br>${e(x.detail)}<span class="do">What to do: ${e(x.action)}</span></div>`).join(''):'<p class="muted">No configured test threshold is currently triggered.</p>';
+  const statusReasons=(r.reasons||[]).length
+    ? r.reasons.map(x=>`<div style="margin-top:7px"><strong>${e(x.title)}</strong>${x.detail?`<br><span class="small">${e(x.detail)}</span>`:''}</div>`).join('')
+    : `<div style="margin-top:7px">${e(sc.summary||'No configured test threshold is currently triggered.')}</div>`;
   const alerts=(r.alerts||[]).length?r.alerts.map(a=>`<div class="alert">
     <b>${e(a.event)}</b><br>
     ${e(a.headline||'Official NWS alert')}
@@ -1083,7 +1085,7 @@ function renderFacility(r){
 
   return `<section class="facility">
     <div class="banner ${e(r.status)}">
-      <div><div class="small" style="font-weight:800;letter-spacing:.08em;color:rgba(255,255,255,.9)">FACILITY ALERT</div><div class="small">${e(r.name)} · ${e(r.icao)} · exact point ${e(r.latitude)}, ${e(r.longitude)} · NWS zone ${e(r.zone||'derived')}</div><div class="level">${e(sc.label||r.status)}</div><div>${e(sc.summary||'')}</div></div>
+      <div><div class="small" style="font-weight:800;letter-spacing:.08em;color:rgba(255,255,255,.9)">FACILITY ALERT</div><div class="small">${e(r.name)} · ${e(r.icao)} · exact point ${e(r.latitude)}, ${e(r.longitude)} · NWS zone ${e(r.zone||'derived')}</div><div class="level">${e(sc.label||r.status)}</div>${statusReasons}</div>
       <div>Next check: ${e(r.next_check_minutes)} min<br><span class="small">Last checked ${e(new Date(r.checked_at).toLocaleString())}</span></div>
     </div>
     <div class="body">
