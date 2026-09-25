@@ -963,6 +963,7 @@ def render_html(payload):
 .banner{padding:22px;color:white;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}.banner.normal{background:var(--normal)}.banner.watch{background:var(--watch)}.banner.action{background:var(--action)}.banner.close{background:var(--close)}
 .level{font-size:30px;font-weight:900;margin:5px 0}.body{padding:22px}.metric strong{display:block;font-size:22px;margin-top:4px}.reason{border-left:5px solid #aaa;padding:12px 14px;background:#fafafa;margin:9px 0;border-radius:7px}.reason.watch{border-color:var(--watch)}.reason.action{border-color:var(--action)}.reason.close{border-color:var(--close)}.do{font-weight:700;display:block;margin-top:7px}
 .alert{background:#fff9e8;border:1px solid #ead6a0;padding:11px;border-radius:9px;margin:8px 0}.ipaws-demo{background:#fff4d7;border:1px solid #d5a82d;border-radius:12px;padding:14px;margin:10px 0}.ipaws-record{background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px;margin:8px 0}.forecast{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px}.forecast>div{border:1px solid var(--line);padding:10px;border-radius:9px;background:#fbfcfd}
+.access-result{border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-top:16px}.access-head{padding:18px 20px;color:#fff}.access-head.normal{background:var(--normal)}.access-head.watch{background:var(--watch)}.access-head.action{background:var(--action)}.access-head.close{background:var(--close)}.access-label{font-size:.76rem;font-weight:800;letter-spacing:.09em}.access-level{font-size:1.55rem;font-weight:900;margin:4px 0 6px}.access-body{padding:18px 20px;background:var(--card)}.access-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.access-summary{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}.access-summary span{display:block;font-size:.76rem;color:var(--muted);font-weight:700;text-transform:uppercase}.access-summary strong{display:block;font-size:1.02rem;margin-top:5px}.access-hazard{border-left:4px solid var(--line);padding:9px 11px;margin:8px 0;background:#fff;border-radius:8px}.access-details{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}@media(max-width:760px){.access-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 h2{margin-top:28px}h3{margin-top:25px}.commute{background:#eaf2f8;border:1px solid #b8cfdf;border-radius:16px;padding:20px;margin:22px 0}.commute-form{display:flex;gap:8px;flex-wrap:wrap}.commute-form input{flex:1;min-width:260px;padding:12px;border:1px solid #aab7c2;border-radius:9px}.commute-form button,.button{background:var(--blue);color:white;border:0;border-radius:9px;padding:11px 15px;text-decoration:none;display:inline-block;cursor:pointer}
 .button.secondary{background:#546576}.source-link{display:block;background:white;border:1px solid var(--line);border-radius:10px;padding:12px;text-decoration:none;color:var(--ink)}.source-link strong{display:block;color:var(--blue)}
 .strain-low{color:var(--normal)}.strain-elevated{color:var(--watch)}.strain-high{color:var(--close)}
@@ -1326,14 +1327,33 @@ async function checkCommute(){
       ? `Calculated route is about ${Math.round(route.miles)} miles and ${Math.round(route.minutes)} minutes before incident-delay adjustment.`
       : 'Route distance and time are unavailable in fallback mode.';
 
-    box.innerHTML=`<div class="panel" style="border-left:6px solid ${color}">
-      <div class="small">Matched origin: ${e(origin.label)}<br>Destination: ${e(dest.label)}<br>${e(routeMode)}</div>
-      <div class="small" style="font-weight:800;letter-spacing:.08em">ACCESS STATUS</div><h3 style="margin:7px 0">Essential personnel: ${e(commuteLevelName(level))}</h3>
-      <p><strong>${e(routeInfo)}</strong></p>
-      <p>${reasons.length?e(reasons.join('; '))+'.':'No significant NWS route-weather signal or matching COtrip roadway impact was found.'}</p>
-      ${roadItems}
-      <p><strong>Important:</strong> COtrip primarily covers Colorado state highways. Local-street conditions may still affect the first or last part of the trip.</p>
-      <a class="button" href="https://www.cotrip.org/" target="_blank" rel="noopener">Open COtrip</a>
+    const levelClass=level===0?'normal':level===1?'watch':level===2?'action':'close';
+    const accessSummary=level===0?'No significant access hazard identified.':level===1?'Conditions may affect travel to Buckley.':level===2?'Significant travel disruption is likely or occurring.':'A critical access hazard has been identified.';
+    const startsInColorado=origin.lat>=36.99&&origin.lat<=41.01&&origin.lon>=-109.06&&origin.lon<=-102.04;
+    const coverageNote=startsInColorado?'COtrip road data is available for the Colorado portion of this route.':'NWS weather is evaluated along the route. COtrip road data is Colorado-only, so road hazards outside Colorado may not be represented until the route enters Colorado.';
+    const weatherDetail=weatherReasons.length?weatherReasons.map(x=>`<div class="alert">${e(x)}</div>`).join(''):'<p class="small">No significant NWS weather hazard was identified at the sampled points along this route.</p>';
+
+    box.innerHTML=`<div class="access-result">
+      <div class="access-head ${levelClass}">
+        <div class="access-label">ACCESS STATUS</div>
+        <div class="access-level">${e(commuteLevelName(level))}</div>
+        <div>${e(accessSummary)}</div>
+        ${reasons.length?`<div style="margin-top:8px">${reasons.map(x=>`<div><strong>${e(x)}</strong></div>`).join('')}</div>`:''}
+      </div>
+      <div class="access-body">
+        <div class="access-summary-grid">
+          <div class="access-summary"><span>Route</span><strong>${route.miles!=null?e(Math.round(route.miles))+' mi':'Unavailable'}</strong><div class="small">${e(origin.label.split(',')[0])} → Buckley</div></div>
+          <div class="access-summary"><span>Weather</span><strong>${e(commuteLevelName(weatherLevel))}</strong><div class="small">${weatherReasons.length?e(weatherReasons[0]):'No major signal'}</div></div>
+          <div class="access-summary"><span>Roads</span><strong>${e(commuteLevelName(road.level))}</strong><div class="small">${road.events.length?e(road.events.length)+' nearby COtrip item'+(road.events.length===1?'':'s'):'No matching hazard'}</div></div>
+          <div class="access-summary"><span>Travel</span><strong>${route.minutes!=null?'~'+e(Math.round(route.minutes))+' min':'Unavailable'}</strong><div class="small">Route estimate</div></div>
+        </div>
+        <h3>What is affecting this route?</h3>
+        ${reasons.length?reasons.map(x=>`<div class="access-hazard">${e(x)}</div>`).join(''):'<div class="access-hazard">No significant NWS route-weather signal or matching COtrip roadway impact was found.</div>'}
+        <div class="small" style="margin-top:12px"><strong>Road coverage:</strong> ${e(coverageNote)}</div>
+        <details class="access-details"><summary>Weather Along Route</summary>${weatherDetail}</details>
+        <details class="access-details"><summary>Colorado Road Conditions & Incidents</summary>${roadItems}<div style="margin-top:10px"><a class="button" href="https://www.cotrip.org/" target="_blank" rel="noopener">Open COtrip</a></div></details>
+        <details class="access-details"><summary>Route Details</summary><div class="small"><strong>Matched origin:</strong> ${e(origin.label)}</div><div class="small"><strong>Destination:</strong> ${e(dest.label)}</div><div class="small"><strong>Routing:</strong> ${e(routeMode)}</div><div class="small"><strong>Road coverage:</strong> ${e(coverageNote)}</div></details>
+      </div>
     </div>`;
   }catch(err){
     box.innerHTML=`<div class="alert"><b>Access check unavailable</b><br>${e(err.message)}</div>`;
